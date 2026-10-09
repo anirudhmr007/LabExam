@@ -1,0 +1,596 @@
+Here is your complete, step-by-step lab guide covering **Experiments 1 through 10** in ascending order. Each experiment includes its core concept, simple commands, and important code snippets with line-by-line explanations.
+
+---
+
+### **Experiment 1: Python CI Pipeline with GitHub Actions and Docker Hub**
+**Goal:** Build a Python application, set up unit tests using `pytest`, and automatically build and push a Docker image to Docker Hub whenever code is pushed to GitHub [1].
+
+#### **Step-by-Step Commands:**
+1. **Create project directory:**
+   ```bash
+   mkdir python-ci-docker-lab && cd python-ci-docker-lab
+   ``` [2]
+2. **Create application files:** Create `app.py`, `tests/test_app.py`, `requirements.txt`, and `Dockerfile` [2, 3].
+3. **Setup GitHub Actions directory:**
+   ```bash
+   mkdir -p .github/workflows
+   ``` [3]
+4. **Initialize Git and push to GitHub:**
+   ```bash
+   git init
+   git add .
+   git commit -m "init lab"
+   git branch -M main
+   git remote add origin https://github.com/<your-username>/python-ci-docker-lab.git
+   git push -u origin main
+   ``` [4]
+5. **Configure Secrets:** On GitHub, navigate to **Settings → Secrets and variables → Actions** and add `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` [4].
+
+---
+
+#### **Code Snippets & Line-by-Line Explanation:**
+
+* **`app.py`**
+  ```python
+  def add(a, b):
+      return a + b
+
+  if __name__ == "__main__":
+      print("Hello from Python CI Lab!")
+      print("2 + 3 =", add(2, 3))
+  ```
+  * **Line 1–2:** Defines `add(a, b)`, a helper function returning the sum of two inputs [2].
+  * **Line 4–6:** Checks if the script is run directly and prints test outputs to console [2].
+
+* **`tests/test_app.py`**
+  ```python
+  from app import add
+
+  def test_add():
+      assert add(2, 3) == 5
+      assert add(-1, 1) == 0
+  ```
+  * **Line 1:** Imports `add` from `app.py` [2].
+  * **Line 3–5:** Defines a unit test verifying `add(2, 3) == 5` and `add(-1, 1) == 0` using `pytest` assertions [2].
+
+* **`Dockerfile`**
+  ```dockerfile
+  FROM python:3.11-slim
+  WORKDIR /app
+  COPY requirements.txt .
+  RUN pip install --no-cache-dir -r requirements.txt
+  COPY . .
+  CMD ["python", "app.py"]
+  ```
+  * **Line 1:** `FROM python:3.11-slim` — Uses a lightweight Python 3.11 base image [3].
+  * **Line 2:** `WORKDIR /app` — Sets the internal container working directory to `/app` [3].
+  * **Line 3:** `COPY requirements.txt .` — Copies the dependency list into container [3].
+  * **Line 4:** `RUN pip install ...` — Installs requirements without caching installer files [3].
+  * **Line 5:** `COPY . .` — Copies all application files into the container [3].
+  * **Line 6:** `CMD ["python", "app.py"]` — Sets the default startup command [3].
+
+* **`.github/workflows/ci-dockerhub.yml`**
+  ```yaml
+  name: ci-dockerhub
+  on:
+    push:
+      branches: [ "main" ]
+  jobs:
+    build-test-push:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+        - name: Set up Python
+          uses: actions/setup-python@v5
+          with:
+            python-version: '3.11'
+        - name: Install deps
+          run: pip install -r requirements.txt
+        - name: Run tests
+          run: pytest -q
+        - name: Login to Docker Hub
+          uses: docker/login-action@v3
+          with:
+            username: ${{ secrets.DOCKERHUB_USERNAME }}
+            password: ${{ secrets.DOCKERHUB_TOKEN }}
+        - name: Build and push
+          uses: docker/build-push-action@v6
+          with:
+            context: .
+            push: true
+            tags: ${{ secrets.DOCKERHUB_USERNAME }}/python-ci-lab:latest
+  ```
+  * **`on:`** Triggers workflow execution automatically when code is pushed to `main` [3].
+  * **`actions/checkout@v4`:** Pulls source code from repository [5].
+  * **`actions/setup-python@v5`:** Prepares Python 3.11 runtime environment [5].
+  * **`pytest -q`:** Executes unit test suite silently [5].
+  * **`docker/login-action@v3`:** Authenticates with Docker Hub using repository secrets [6].
+  * **`docker/build-push-action@v6`:** Builds container image and pushes to Docker Hub registry [6].
+
+---
+
+### **Experiment 2: Flask App Containerization & Manual Docker Hub Deployment**
+**Goal:** Containerize a Flask application locally, run it in Docker, and manually push it to Docker Hub [7].
+
+#### **Step-by-Step Commands:**
+1. **Create folder:** `mkdir flask-docker-app && cd flask-docker-app` [7].
+2. **Build Docker image:**
+   ```bash
+   docker build -t flask-docker-app .
+   ``` [8]
+3. **Run container locally:**
+   ```bash
+   docker run -p 5000:5000 flask-docker-app
+   ``` [8]
+4. **Log in to Docker Hub:**
+   ```bash
+   docker login
+   ``` [9]
+5. **Tag and push image:**
+   ```bash
+   docker tag flask-docker-app <your-username>/flask-docker-app:latest
+   docker push <your-username>/flask-docker-app:latest
+   ``` [9]
+
+---
+
+#### **Code Snippets & Line-by-Line Explanation:**
+
+* **`app.py`**
+  ```python
+  from flask import Flask, render_template_string
+  app = Flask(__name__)
+
+  HTML_TEMPLATE = "<h1>Welcome to Flask + Docker!</h1>"
+
+  @app.route('/')
+  def home():
+      return render_template_string(HTML_TEMPLATE)
+
+  if __name__ == '__main__':
+      app.run(host='0.0.0.0', port=5000)
+  ```
+  * **Line 1–2:** Imports Flask modules and initializes app instance [7].
+  * **Line 4:** Defines inline HTML string template [7, 10].
+  * **Line 6–8:** Binds root path `/` to `home()` route returning rendered HTML [10].
+  * **Line 10–11:** Binds server to `0.0.0.0` (accessible from host machine) on port 5000 [8].
+
+---
+
+### **Experiment 3: Continuous Integration Fundamentals & Pipeline Verification**
+**Goal:** Validate CI concepts, release tagging workflows, and pipeline security using GitHub Actions triggers [11, 12].
+
+#### **Step-by-Step Commands:**
+1. **Push updates to trigger automated CI build:**
+   ```bash
+   git add .
+   git commit -m "Update code"
+   git push origin main
+   ``` [4, 12]
+2. **Tag and push a release version:**
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ``` [13]
+3. **Verify:** Check pipeline progress under **GitHub Actions tab** and verify output image tag inside Docker Hub repository [13].
+
+---
+
+### **Experiment 4: Deployment of a Static Web Page Using Jenkins and Docker**
+**Goal:** Deploy Jenkins inside Docker Compose, build a pipeline generating a static web page, display it using the **HTML Publisher plugin**, and archive artifacts [14].
+
+#### **Step-by-Step Commands:**
+1. **Setup folder and start Jenkins:**
+   ```bash
+   mkdir ~/jenkins-static-site && cd ~/jenkins-static-site
+   docker compose up -d
+   ``` [15, 16]
+2. **Retrieve admin password:**
+   ```bash
+   docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+   ``` [16]
+3. **Access Jenkins:** Open `http://localhost:8080`, install suggested plugins [16].
+4. **Install HTML Publisher Plugin:** Manage Jenkins → Plugins → Available Plugins → Search **HTML Publisher** → Install [16].
+5. **Create Pipeline:** New Item → Pipeline (`karunya-site-pipeline`) → paste Jenkinsfile script → Click **Build Now** [16, 17].
+
+---
+
+#### **Code Snippets & Line-by-Line Explanation:**
+
+* **`docker-compose.yml`**
+  ```yaml
+  version: '3.8'
+  services:
+    jenkins:
+      image: jenkins/jenkins:lts
+      container_name: jenkins
+      restart: unless-stopped
+      ports:
+        - "8080:8080"
+        - "50000:50000"
+      volumes:
+        - jenkins_home:/var/jenkins_home
+        - /var/run/docker.sock:/var/run/docker.sock
+  volumes:
+    jenkins_home:
+  ```
+  * **`image: jenkins/jenkins:lts`:** Pulls official LTS Jenkins image [15].
+  * **`ports: "8080:8080"`:** Maps Jenkins dashboard port to host machine [15].
+  * **`volumes:`:** Persists data to `jenkins_home` and maps host Docker socket so Jenkins can execute Docker commands [15].
+
+* **`Jenkinsfile` (Pipeline Script)**
+  ```groovy
+  pipeline {
+      agent any
+      stages {
+          stage('Generate site') {
+              steps {
+                  script {
+                      sh 'rm -rf site || true'
+                      sh 'mkdir -p site/assets'
+                      writeFile file: 'site/index.html', text: '<html><body><h1>Karunya University</h1></body></html>'
+                  }
+              }
+          }
+          stage('Publish site') {
+              steps {
+                  publishHTML([
+                      allowMissing: false,
+                      alwaysLinkToLastBuild: true,
+                      keepAll: true,
+                      reportDir: 'site',
+                      reportFiles: 'index.html',
+                      reportName: 'Karunya Site'
+                  ])
+              }
+          }
+      }
+      post {
+          always { archiveArtifacts artifacts: 'site/**', fingerprint: true }
+      }
+  }
+  ```
+  * **`agent any`:** Executes job on any available agent node [18].
+  * **`writeFile:`:** Generates static `index.html` inside workspace `site/` folder [18].
+  * **`publishHTML(...):`:** Formats and publishes directory via HTML Publisher plugin [17].
+  * **`archiveArtifacts:`:** Saves generated site files permanently as downloadable build outputs [17].
+
+---
+
+### **Experiment 5: Deployment of a Reactive Web Page Using Jenkins and Docker**
+**Goal:** Deploy a reactive webpage using client-side JavaScript dynamic state management in Jenkins [19, 20].
+
+#### **Step-by-Step Commands:**
+1. **Start Jenkins container:** Set up environment via Docker Compose (`http://localhost:8080`) [21].
+2. **Create Pipeline Job:** Name it `karunya-reactive-site` [22].
+3. **Execute:** Click **Build Now**, then open the published site report and click **Update Content** to test client-side updates without page reloads [22, 23].
+
+---
+
+#### **Code Snippets & Line-by-Line Explanation:**
+
+* **`site/assets/app.js` (Generated JS script inside Jenkins pipeline)**
+  ```javascript
+  let state = {
+    title: "About Karunya University",
+    description: "Karunya Institute of Technology and Sciences."
+  };
+
+  function render() {
+    document.getElementById("about-title").innerText = state.title;
+    document.getElementById("about-text").innerText = state.description;
+  }
+
+  function updateContent() {
+    state.description = "Content updated dynamically without page reload!";
+    render();
+  }
+
+  document.addEventListener("DOMContentLoaded", render);
+  ```
+  * **Line 1–4:** Defines application `state` object storing reactive content [24].
+  * **Line 6–9:** `render()` updates DOM element inner text dynamically [24].
+  * **Line 11–14:** `updateContent()` mutates state variable and triggers re-render [24].
+  * **Line 16:** Runs initial `render()` upon DOM load event [24].
+
+---
+
+### **Experiment 6: Manage Kubernetes Resources Using CLI**
+**Goal:** Install Docker, `kubectl`, and Minikube; create Pods, Deployments, scale replicas, perform rolling updates, and expose NodePort services using `kubectl` CLI [25, 26].
+
+#### **Step-by-Step Commands:**
+1. **Start Minikube:**
+   ```bash
+   minikube start --driver=docker
+   kubectl get nodes
+   ``` [27, 28]
+2. **Deploy Pod manifest:**
+   ```bash
+   kubectl apply -f nginx-pod.yaml
+   kubectl port-forward pod/nginx-pod 8080:80
+   ``` [27, 29, 30]
+3. **Create Deployment & Scale to 3 Replicas:**
+   ```bash
+   kubectl create deployment my-nginx --image=nginx
+   kubectl scale deployment my-nginx --replicas=3
+   kubectl get pods
+   ``` [29-32]
+4. **Perform Rolling Update & Expose Service:**
+   ```bash
+   kubectl set image deployment/my-nginx nginx=nginx:1.25
+   kubectl expose deployment my-nginx --type=NodePort --port=80
+   minikube service my-nginx --url
+   ``` [31-34]
+5. **Cleanup:**
+   ```bash
+   kubectl delete deployment my-nginx
+   kubectl delete svc my-nginx
+   minikube stop
+   ``` [33, 34]
+
+---
+
+#### **Code Snippets & Line-by-Line Explanation:**
+
+* **`nginx-pod.yaml`**
+  ```yaml
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: nginx-pod
+    labels:
+      app: nginx
+  spec:
+    containers:
+    - name: nginx
+      image: nginx:latest
+      ports:
+      - containerPort: 80
+  ```
+  * **`apiVersion: v1` & `kind: Pod`:** Specifies core API version and single-pod resource type [27].
+  * **`metadata.name: nginx-pod`:** Sets pod name identifier [27].
+  * **`spec.containers:`:** Configures `nginx` container listening on port 80 [27].
+
+---
+
+### **Experiment 7: Kubernetes Deployment and Service for Python Application**
+**Goal:** Deploy a Python Flask app from Docker Hub (`dockersamples/flaskapp`) to Kubernetes using YAML configuration files [35, 36].
+
+#### **Step-by-Step Commands:**
+1. **Pull container image:** `docker pull dockersamples/flaskapp` [37, 38].
+2. **Apply Deployment manifest:**
+   ```bash
+   kubectl apply -f python-deployment.yaml
+   kubectl get deployments
+   kubectl get pods
+   ``` [39, 40]
+3. **Apply Service manifest & access app:**
+   ```bash
+   kubectl apply -f python-service.yaml
+   minikube service python-web-service --url
+   ``` [39, 41, 42]
+
+---
+
+#### **Code Snippets & Line-by-Line Explanation:**
+
+* **`python-deployment.yaml`**
+  ```yaml
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: python-web-deployment
+  spec:
+    replicas: 2
+    selector:
+      matchLabels:
+        app: python-web
+    template:
+      metadata:
+        labels:
+          app: python-web
+      spec:
+        containers:
+        - name: python-web
+          image: dockersamples/flaskapp:latest
+          ports:
+          - containerPort: 5000
+  ```
+  * **`kind: Deployment`:** Manages pod replication and lifecycle [37, 43].
+  * **`replicas: 2`:** Maintains 2 pod instances for redundancy and load handling [37, 43, 44].
+  * **`selector.matchLabels`:** Selects pods labeled `app: python-web` [37, 43].
+  * **`containerPort: 5000`:** Exposes container port 5000 inside Kubernetes [37, 43].
+
+* **`python-service.yaml`**
+  ```yaml
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: python-web-service
+  spec:
+    type: NodePort
+    selector:
+      app: python-web
+    ports:
+      - protocol: TCP
+        port: 5000
+        targetPort: 5000
+  ```
+  * **`type: NodePort`:** Exposes service on node IP outside cluster [39, 45].
+  * **`port` & `targetPort`:** Routes traffic from service port 5000 to target pod container port 5000 [39, 45].
+
+---
+
+### **Experiment 8: Ansible Integration with Kubernetes Cluster**
+**Goal:** Connect Ansible to Minikube cluster using `community.kubernetes` collection to automate cluster information retrieval [46, 47].
+
+#### **Step-by-Step Commands:**
+1. **Install Ansible & Kubernetes Collection:**
+   ```bash
+   sudo apt update && sudo apt install -y ansible
+   ansible-galaxy collection install community.kubernetes
+   ``` [47-49]
+2. **Verify connection & run playbook:**
+   ```bash
+   ansible-playbook get-k8s-info.yaml
+   ``` [50-52]
+
+---
+
+#### **Code Snippets & Line-by-Line Explanation:**
+
+* **`get-k8s-info.yaml`**
+  ```yaml
+  ---
+  - name: Gather Kubernetes Information
+    hosts: localhost
+    connection: local
+    gather_facts: no
+    tasks:
+      - name: Get all namespaces
+        community.kubernetes.k8s_info:
+          kind: Namespace
+        register: ns_info
+
+      - debug:
+          var: ns_info.resources
+
+      - name: Get all nodes
+        community.kubernetes.k8s_info:
+          kind: Node
+        register: node_info
+
+      - debug:
+          var: node_info.resources
+  ```
+  * **`hosts: localhost` & `connection: local`:** Directs Ansible execution locally against default `~/.kube/config` credentials [49, 50].
+  * **`community.kubernetes.k8s_info`:** Ansible module querying Kubernetes resources [49, 50].
+  * **`kind: Namespace` / `kind: Node`:** Target resource types requested [50, 51].
+  * **`register: ns_info`:** Stores query responses into custom variable [50, 51].
+  * **`debug:`:** Prints formatted variable values into command output [50, 51].
+
+---
+
+### **Experiment 9: Deploy Flask Web App Locally Using Ansible, Gunicorn & systemd**
+**Goal:** Automate local deployment of Flask using Gunicorn WSGI server as a background `systemd` service managed by Ansible [53].
+
+#### **Step-by-Step Commands:**
+1. **Test host connection:**
+   ```bash
+   ansible -i inventory.ini all -m ping
+   ``` [54]
+2. **Execute playbook with sudo privileges:**
+   ```bash
+   ansible-playbook playbook.yml -K
+   ``` [54]
+3. **Verify running service:**
+   ```bash
+   curl http://127.0.0.1:8000
+   ``` [54]
+
+---
+
+#### **Code Snippets & Line-by-Line Explanation:**
+
+* **`files/app.service.j2` (systemd unit Jinja2 template)**
+  ```ini
+  [Unit]
+  Description=Gunicorn for Flask app
+  After=network.target
+
+  [Service]
+  User={{ deploy_user }}
+  WorkingDirectory={{ app_root }}
+  ExecStart={{ venv_path }}/bin/gunicorn --workers {{ gunicorn_workers }} --bind 127.0.0.1:8000 wsgi:app
+  Restart=always
+
+  [Install]
+  WantedBy=multi-user.target
+  ```
+  * **`WorkingDirectory=`:** Sets application execution root directory [55].
+  * **`ExecStart=`:** Starts Gunicorn WSGI server pointing to `wsgi:app` on port 8000 [55].
+  * **`Restart=always`:** Configures systemd auto-restart policy on crashes [55, 56].
+
+* **`playbook.yml`**
+  ```yaml
+  ---
+  - name: Deploy Flask app
+    hosts: local
+    become: true
+    tasks:
+      - name: Create app directory
+        file: path="/opt/ansible_flask_app" state=directory
+      - name: Copy source code
+        copy: src="src_app/" dest="/opt/ansible_flask_app/"
+      - name: Create venv & install deps
+        command: "/opt/ansible_flask_app/venv/bin/pip install -r /opt/ansible_flask_app/requirements.txt"
+      - name: Render systemd service
+        template: src=files/app.service.j2 dest="/etc/systemd/system/ansible-flask.service"
+      - name: Enable and start service
+        systemd: name=ansible-flask.service state=started enabled=true
+  ```
+  * Automates folder creation, code copy, virtual environment setup, Jinja2 service template deployment, and systemd service startup [65–67].
+
+---
+
+### **Experiment 10: Ansible for Docker & Kubernetes (Local NGINX with kind)**
+**Goal:** Automate Docker container execution and local Kubernetes deployment using `kind` with Ansible playbooks [57].
+
+#### **Step-by-Step Commands:**
+1. **Install collections:**
+   ```bash
+   ansible-galaxy collection install -r requirements.yml
+   ``` [57]
+2. **Run Docker container playbook:**
+   ```bash
+   ansible-playbook -i inventory.ini docker.yml
+   ``` [58]
+   *(Open `http://localhost:8080`)* [59]
+3. **Run Kubernetes cluster playbook:**
+   ```bash
+   ansible-playbook -i inventory.ini k8s.yml
+   kubectl port-forward svc/nginx 8081:80
+   ``` [60]
+   *(Open `http://localhost:8081`)* [60]
+
+---
+
+#### **Code Snippets & Line-by-Line Explanation:**
+
+* **`docker.yml`**
+  ```yaml
+  ---
+  - hosts: local
+    become: true
+    tasks:
+      - name: Run NGINX container
+        community.docker.docker_container:
+          name: web
+          image: nginx:alpine
+          published_ports:
+            - "8080:80"
+          restart_policy: always
+  ```
+  * Uses `community.docker.docker_container` module to run `nginx:alpine` container mapping host port 8080 to container port 80 [59].
+
+* **`k8s.yml`**
+  ```yaml
+  ---
+  - hosts: local
+    become: true
+    tasks:
+      - name: Create kind cluster if missing
+        ansible.builtin.shell: |
+          kind get clusters | grep -q '^simple$' || kind create cluster --name simple
+      - name: Apply NGINX Deployment & Service
+        kubernetes.core.k8s:
+          state: present
+          definition: "{{ lookup('file', playbook_dir + '/k8s-nginx.yaml') | from_yaml_all | list }}"
+  ```
+  * Creates local Kubernetes cluster named `simple` via `kind` shell command if missing [61].
+  * `kubernetes.core.k8s` module parses and applies `k8s-nginx.yaml` Deployment and NodePort Service manifests directly to the cluster [60, 61].
+
+---
+
+💡 Would you like me to generate a printable summary guide or flashcard set to help you revise key commands before your lab exam?
